@@ -13,8 +13,7 @@ type commands struct {
 
 func (c *commands) run(s *state, cmd command) error {
 	if f, exists := c.Commands[cmd.Name]; exists {
-		f(s, cmd)
-		return nil
+		return f(s, cmd)
 	}
 	return errors.New("I'm sorry Dave, I'm afraid I can't do that.")
 }
