@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := sql.Open("postgres", cfg.Url)
+	db, err := sql.Open("postgres", cfg.DBURL)
 	if err != nil {
 		fmt.Println("DATABASE ERROR:", err)
 		os.Exit(1)
@@ -41,6 +41,8 @@ func main() {
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", handlerReset)
+	cmds.register("users", handlerUsers)
+	cmds.register("agg", handlerAgg)
 	var args = os.Args
 	if len(args) < 2 {
 		fmt.Println("BOREDOM ERROR: Soooo... did you want to do something? Orrr....")
