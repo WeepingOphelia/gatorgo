@@ -24,15 +24,16 @@ func handlerLogin(s *state, cmd command) error {
 }
 
 func handlerRegister(s *state, cmd command) error {
+	ctx := context.Background()
 	if len(cmd.Args) < 1 {
 		return errors.New("Username required for registration")
 	}
-	_, err := s.db.GetUser(context.Background(), cmd.Args[0])
+	_, err := s.db.GetUser(ctx, cmd.Args[0])
 	if err == nil {
 		return errors.New("User already exists")
 	}
-	s.db.CreateUser(
-		context.Background(),
+	u, err := s.db.CreateUser(
+		ctx,
 		database.CreateUserParams{
 			ID:        uuid.New(),
 			CreatedAt: time.Now(),
@@ -40,9 +41,16 @@ func handlerRegister(s *state, cmd command) error {
 			Name:      cmd.Args[0],
 		},
 	)
+	if err != nil {
+		return err
+	}
+
 	s.cfg.SetUser(cmd.Args[0])
 	fmt.Println("Registered:", cmd.Args[0])
-	fmt.Print(s.db.GetUser(context.Background(), cmd.Args[0]))
+
+	fmt.Printf("ID: %v\n", u.ID)
+	fmt.Printf("Created: %v\n", u.CreatedAt)
+	fmt.Printf("Updated: %v\n", u.UpdatedAt)
 	return nil
 }
 
