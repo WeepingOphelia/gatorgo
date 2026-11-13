@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -51,11 +52,24 @@ func handlerAddFeed(s *state, cmd command, u database.User) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if len(cmd.Args) < 1 {
+		return errors.New("How long between requests?")
+	}
+	t, err := time.ParseDuration(cmd.Args[0])
 	if err != nil {
 		return err
 	}
-	fmt.Print(feed)
+	fmt.Printf("Collecting feeds every: %v\n\n", t)
+
+	ticker := time.NewTicker(t)
+	defer ticker.Stop()
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
+	//feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+}
+
+func handlerBrowse(s *state, cmd command, u database.User) error {
 	return nil
 }
 
@@ -142,4 +156,51 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 		}
 		return handler(s, cmd, u)
 	}
+}
+
+func scrapeFeeds(s *state) error {
+	ctx := context.Background()
+	f, err := s.db.GetNextFeedToFetch(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.db.MarkFeedFetched(ctx, database.MarkFeedFetchedParams{
+		ID: f.ID,
+		LastFetchedAt: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+	})
+	c, err := fetchFeed(ctx, f.Url)
+	if err != nil {
+		return err
+	}
+
+	for _, i := range c.Channel.Item {
+		v := true
+		pt, err := time.Parse(time.RFC3339, i.PubDate)
+		if err != nil {
+			v = false
+		}
+
+		nt := sql.NullTime{
+			Time:  pt,
+			Valid: v,
+		}
+
+		err = s.db.CreatePost(ctx, database.CreatePostParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Title:     i.Title,
+			Url:       i.Link,
+			Description: sql.NullString{
+				String: i.Description,
+				Valid:  true,
+			},
+			PublishedAt: nt,
+			FeedID:      f.ID,
+		})
+	}
+	return nil
 }
