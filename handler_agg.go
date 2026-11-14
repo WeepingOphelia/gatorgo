@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/WeepingOphelia/gatorgo/internal/database"
@@ -70,6 +71,26 @@ func handlerAgg(s *state, cmd command) error {
 }
 
 func handlerBrowse(s *state, cmd command, u database.User) error {
+	lmt := 2
+	var err error
+	if len(cmd.Args) == 1 {
+		lmt, err = strconv.Atoi(cmd.Args[0])
+		if err != nil {
+			return err
+		}
+	}
+	lmt32 := int32(lmt)
+	ps, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: u.ID,
+		Limit:  lmt32,
+	})
+	if err != nil {
+		return err
+	}
+	for _, p := range ps {
+		fmt.Printf("%s\n\n", p.Title)
+		fmt.Printf("%s\n\n", p.Description)
+	}
 	return nil
 }
 
